@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Pricing Strategy Calculator</title>
+    
+    <!-- Mobile Application Meta Tags -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Pricing Calc">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#2563eb">
+    
+    <!-- Tailwind CSS for Styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- React and Babel for Component Logic -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <!-- Lucide Icons Library -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap');
+        body { 
+            font-family: 'Inter', sans-serif; 
+            -webkit-tap-highlight-color: transparent;
+        }
+        /* Ensures the application feels native on mobile devices */
+        html, body {
+            overscroll-behavior-y: contain;
+        }
+        input::-webkit-outer-spin-button,
+        input::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        input[type=number] {
+            -moz-appearance: textfield;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-900">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        /**
+         * Enhanced Icon Component
+         * Fixes potential Document Object Model errors by managing the icon lifecycle 
+         * inside a stable container that React does not reconcile directly.
+         */
+        const Icon = ({ name, className }) => {
+            const containerRef = useRef(null);
+
+            useEffect(() => {
+                if (window.lucide && containerRef.current) {
+                    containerRef.current.innerHTML = `<i data-lucide="${name}"></i>`;
+                    window.lucide.createIcons({
+                        attrs: { class: className },
+                        nameAttr: 'data-lucide',
+                        root: containerRef.current
+                    });
+                }
+            }, [name, className]);
+
+            return <span ref={containerRef} className="inline-flex items-center justify-center"></span>;
+        };
+
+        const App = () => {
+            // Values initialized to zero for a clean starting point
+            const [salary, setSalary] = useState("0");
+            const [seatBurden, setSeatBurden] = useState("0");
+            const [flatFee, setFlatFee] = useState("0");
+            const [targetMargin, setTargetMargin] = useState("0");
+            // Exchange rate default set at fifty seven
+            const [exchangeRate, setExchangeRate] = useState("57.00");
+            const [quickPhpValue, setQuickPhpValue] = useState("");
+
+            const convertToPHP = (usdValue) => {
+                const numericUSD = parseFloat(usdValue);
+                if (isNaN(numericUSD)) return "";
+                return (numericUSD * parseFloat(exchangeRate)).toFixed(2);
+            };
+
+            const convertToUSD = (phpValue) => {
+                const numericPHP = parseFloat(phpValue);
+                if (isNaN(numericPHP)) return "";
+                return (numericPHP / parseFloat(exchangeRate)).toFixed(2);
+            };
+
+            const handleSalaryChange = (value, unit) => {
+                if (unit === 'USD') setSalary(value);
+                else setSalary(value === "" ? "" : convertToUSD(value));
+            };
+
+            const handleBurdenChange = (value, unit) => {
+                if (unit === 'USD') setSeatBurden(value);
+                else setSeatBurden(value === "" ? "" : convertToUSD(value));
+            };
+
+            const handleFlatFeeChange = (value, unit) => {
+                if (unit === 'USD') setFlatFee(value);
+                else setFlatFee(value === "" ? "" : convertToUSD(value));
+            };
+
+            const adjustExchangeRate = (amount) => {
+                setExchangeRate(prev => {
+                    const current = parseFloat(prev) || 0;
+                    return Math.max(0, current + amount).toFixed(2);
+                });
+            };
+
+            const numSalary = parseFloat(salary) || 0;
+            const numBurden = parseFloat(seatBurden) || 0;
+            const numFlatFee = parseFloat(flatFee) || 0;
+            const numMargin = parseFloat(targetMargin) || 0;
+            const numExchange = parseFloat(exchangeRate) || 1;
+
+            const totalInternalCost = numSalary + numBurden;
+            const flatFeePrice = totalInternalCost + numFlatFee;
+            const marginPrice = numMargin < 100 ? totalInternalCost / (1 - (numMargin / 100)) : 0;
+            
+            const isFlatFeeBetter = flatFeePrice >= marginPrice;
+            const finalServiceFee = Math.max(flatFeePrice, marginPrice);
+            const netProfit = finalServiceFee - totalInternalCost;
+            const actualMarginPercentage = finalServiceFee > 0 ? (netProfit / finalServiceFee) * 100 : 0;
+            const crossoverCost = numFlatFee > 0 ? numFlatFee * (0.7 / 0.3) : 0;
+            const quickUsdResult = parseFloat(quickPhpValue) ? (parseFloat(quickPhpValue) / numExchange).toFixed(2) : "0.00";
+
+            const formatCurrency = (val, currency) => {
+                return new Intl.NumberFormat(currency === 'PHP' ? 'en-PH' : 'en-US', {
+                    style: 'currency',
+                    currency: currency,
+                }).format(val);
+            };
+
+            return (
+                <div className="p-4 md:p-8 pb-20 md:pb-8">
+                    <div className="max-w-6xl mx-auto">
+                        <header className="mb-8 text-center">
+                            <h1 className="text-3xl font-bold text-slate-900 mb-2 flex items-center justify-center gap-3">
+                                <Icon name="calculator" className="w-8 h-8 text-blue-600" />
+                                Pricing Strategy Calculator
+                            </h1>
+                            <p className="text-slate-600 italic text-sm font-medium uppercase tracking-tight">Standalone Operational Optimization Tool</p>
+                        </header>
+
+                        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 md:gap-8">
+                            <div className="lg:col-span-4 space-y-6">
+                                {/* Quick Converter Card */}
+                                <div className="bg-gradient-to-br from-blue-600 to-blue-700 p-6 rounded-2xl shadow-lg text-white">
+                                    <div className="flex justify-between items-center mb-4">
+                                        <h2 className="text-sm font-bold uppercase tracking-widest flex items-center gap-2 font-semibold text-blue-100 text-[11px]">
+                                            <Icon name="refresh-cw" className="w-4 h-4 text-blue-200" />
+                                            Quick Currency Converter
+                                        </h2>
+                                        <button 
+                                            onClick={() => setQuickPhpValue("")}
+                                            className="p-1 hover:bg-white/10 rounded-full transition-colors"
+                                            title="Reset Quick Converter"
+                                        >
+                                            <Icon name="rotate-ccw" className="w-4 h-4 text-blue-200" />
+                                        </button>
+                                    </div>
+                                    <div className="space-y-4">
+                                        <div>
+                                            <label className="block text-xs font-medium opacity-80 mb-1 font-semibold uppercase tracking-wider text-[10px]">Philippine Pesos</label>
+                                            <div className="relative">
+                                                <span className="absolute left-3 top-2 text-blue-200 font-bold">₱</span>
+                                                <input 
+                                                    type="number" 
+                                                    placeholder="0.00"
+                                                    value={quickPhpValue} 
+                                                    onChange={(e) => setQuickPhpValue(e.target.value)}
+                                                    className="w-full pl-8 pr-4 py-2 bg-white/10 border border-white/20 rounded-lg font-bold text-white placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-white/50 text-lg"
+                                                />
+                                            </div>
+                                        </div>
+                                        <div className="flex justify-center py-0">
+                                            <Icon name="arrow-right-left" className="w-5 h-5 opacity-50 rotate-90" />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-medium opacity-80 mb-1 font-semibold uppercase tracking-wider text-[10px]">United States Dollars</label>
+                                            <div className="bg-white/10 border border-white/20 rounded-lg p-3">
+                                                <p className="text-2xl font-black tracking-tight text-white">
+                                                    <span className="text-sm font-normal mr-1 opacity-60 font-semibold text-[12px]">USD</span>
+                                                    ${parseFloat(quickUsdResult).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Exchange Rate Settings */}
+                                <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
+                                    <div className="flex justify-between items-center mb-3">
+                                        <h2 className="text-sm font-bold uppercase tracking-wider text-slate-500 flex items-center gap-2 font-semibold text-[11px]">
+                                            <Icon name="globe" className="w-4 h-4 text-blue-500" />
+                                            Exchange Rate
+                                        </h2>
+                                        <button 
+                                            onClick={() => setExchangeRate("57.00")}
+                                            className="p-1 hover:bg-slate-100 rounded-full transition-colors text-slate-400"
+                                            title="Reset to Default Rate"
+                                        >
+                                            <Icon name="rotate-ccw" className="w-3.5 h-3.5" />
+                                        </button>
+                                    </div>
+                                    <div className="relative flex items-center h-10">
+                                        <span className="absolute left-3 text-slate-400 font-bold">₱</span>
+                                        <input 
+                                            type="number" 
+                                            value={exchangeRate} 
+                                            onChange={(e) => setExchangeRate(e.target.value)}
+                                            className="w-full pl-7 pr-10 h-full bg-blue-50/50 border border-blue-100 rounded-lg font-bold text-blue-700 focus:outline-none"
+                                        />
+                                        <div className="absolute right-1 flex flex-col justify-center h-[calc(100%-8px)] my-1 gap-0.5">
+                                            <button 
+                                                onClick={() => adjustExchangeRate(1)}
+                                                className="flex items-center justify-center w-7 h-1/2 bg-slate-200 hover:bg-blue-600 rounded-t text-slate-600 hover:text-white transition-all active:scale-105"
+                                                title="Increase by 1 Philippine Peso"
+                                            >
+                                                <Icon name="chevron-up" className="w-3.5 h-3.5 text-current" />
+                                            </button>
+                                            <button 
+                                                onClick={() => adjustExchangeRate(-1)}
+                                                className="flex items-center justify-center w-7 h-1/2 bg-slate-200 hover:bg-blue-600 rounded-b text-slate-600 hover:text-white transition-all active:scale-105"
+                                                title="Decrease by 1 Philippine Peso"
+                                            >
+                                                <Icon name="chevron-down" className="w-3.5 h-3.5 text-current" />
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Input Variables Section */}
+                                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                                    <h2 className="text-lg font-semibold mb-6 flex items-center gap-2 text-slate-800">
+                                        <Icon name="briefcase" className="w-5 h-5 text-blue-500" />
+                                        Input Variables
+                                    </h2>
+                                    <div className="space-y-6">
+                                        <div>
+                                            <div className="flex justify-between items-center mb-2">
+                                                <label className="block text-sm font-bold text-slate-700 uppercase text-[10px] tracking-wider font-semibold">Employee Salary</label>
+                                                <button onClick={() => setSalary("0")} className="text-slate-400 hover:text-blue-500 transition-colors" title="Reset Salary">
+                                                    <Icon name="rotate-ccw" className="w-3.5 h-3.5" />
+                                                </button>
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-2">
+                                                <div className="relative">
+                                                    <span className="absolute left-2 top-2 text-[9px] text-slate-400 font-bold uppercase">USD</span>
+                                                    <input type="number" value={salary} onChange={(e) => handleSalaryChange(e.target.value, 'USD')} className="w-full pl-9 pr-2 py-3 bg-slate-50 border rounded-lg text-base outline-none focus:ring-2 focus:ring-blue-500" />
+                                                </div>
+                                                <div className="relative">
+                                                    <span className="absolute left-2 top-2 text-[9px] text-slate-400 font-bold uppercase">PHP</span>
+                                                    <input type="number" value={convertToPHP(salary)} readOnly={true} className="w-full pl-9 pr-2 py-3 bg-slate-100 border rounded-lg text-base outline-none cursor-not-allowed text-slate-500" />
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <div className="flex justify-between items-center mb-2">
+                                                <label className="block text-sm font-bold text-slate-700 uppercase text-[10px] tracking-wider font-semibold">Seat Burden</label>
+                                                <button onClick={() => setSeatBurden("0")} className="text-slate-400 hover:text-blue-500 transition-colors" title="Reset Seat Burden">
+                                                    <Icon name="rotate-ccw" className="w-3.5 h-3.5" />
+                                                </button>
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-2">
+                                                <div className="relative">
+                                                    <span className="absolute left-2 top-2 text-[9px] text-slate-400 font-bold uppercase">USD</span>
+                                                    <input type="number" value={seatBurden} onChange={(e) => handleBurdenChange(e.target.value, 'USD')} className="w-full pl-9 pr-2 py-3 bg-slate-50 border rounded-lg text-base outline-none focus:ring-2 focus:ring-blue-500" />
+                                                </div>
+                                                <div className="relative">
+                                                    <span className="absolute left-2 top-2 text-[9px] text-slate-400 font-bold uppercase">PHP</span>
+                                                    <input type="number" value={convertToPHP(seatBurden)} readOnly={true} className="w-full pl-9 pr-2 py-3 bg-slate-100 border rounded-lg text-base outline-none cursor-not-allowed text-slate-500" />
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className="pt-4 border-t">
+                                            <div className="flex justify-between items-center mb-2">
+                                                <label className="block text-sm font-bold text-slate-700 uppercase text-[10px] tracking-wider font-semibold">Flat Operational Fee</label>
+                                                <button onClick={() => setFlatFee("0")} className="text-slate-400 hover:text-blue-500 transition-colors" title="Reset Flat Fee">
+                                                    <Icon name="rotate-ccw" className="w-3.5 h-3.5" />
+                                                </button>
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-2">
+                                                <div className="relative">
+                                                    <span className="absolute left-2 top-2 text-[9px] text-slate-400 font-bold uppercase">USD</span>
+                                                    <input type="number" value={flatFee} onChange={(e) => handleFlatFeeChange(e.target.value, 'USD')} className="w-full pl-9 pr-2 py-3 bg-slate-50 border rounded-lg text-base outline-none focus:ring-2 focus:ring-blue-500" />
+                                                </div>
+                                                <div className="relative">
+                                                    <span className="absolute left-2 top-2 text-[9px] text-slate-400 font-bold uppercase">PHP</span>
+                                                    <input type="number" value={convertToPHP(flatFee)} readOnly={true} className="w-full pl-9 pr-2 py-3 bg-slate-100 border rounded-lg text-base outline-none cursor-not-allowed text-slate-500" />
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <div className="flex justify-between items-center mb-2">
+                                                <label className="block text-sm font-bold text-slate-700 uppercase text-[10px] tracking-wider font-semibold">Target Margin Percentage</label>
+                                                <button onClick={() => setTargetMargin("0")} className="text-slate-400 hover:text-blue-500 transition-colors" title="Reset Target Margin">
+                                                    <Icon name="rotate-ccw" className="w-3.5 h-3.5" />
+                                                </button>
+                                            </div>
+                                            <div className="relative">
+                                                <input type="number" value={targetMargin} onChange={(e) => setTargetMargin(e.target.value)} className="w-full pl-4 pr-10 py-3 bg-slate-50 border rounded-lg text-base outline-none focus:ring-2 focus:ring-blue-500" />
+                                                <span className="absolute right-3 top-3 text-slate-400 font-bold">%</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="lg:col-span-8 space-y-6">
+                                {/* Result Dashboard */}
+                                <div className="bg-white p-6 md:p-8 rounded-3xl shadow-xl border border-blue-50 relative overflow-hidden">
+                                    <div className="absolute top-0 right-0 p-6 opacity-5">
+                                        <Icon name="trending-up" className="w-24 h-24 text-slate-900" />
+                                    </div>
+                                    <div className="relative z-10">
+                                        <div className="flex items-center gap-2 mb-4">
+                                            <span className="px-3 py-1 bg-blue-600 text-white text-[10px] font-black rounded-full uppercase tracking-tighter text-white">Recommended Monthly Charge</span>
+                                            <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest font-semibold">{isFlatFeeBetter ? 'Flat Fee Model' : 'Target Margin Model'}</span>
+                                        </div>
+                                        <div className="flex flex-col md:flex-row md:items-end gap-1 md:gap-6 mb-8">
+                                            <h2 className="text-5xl md:text-7xl font-black text-slate-900 tracking-tighter leading-none">
+                                                {formatCurrency(finalServiceFee, 'USD')}
+                                            </h2>
+                                            <div className="flex flex-col">
+                                                <span className="text-xl md:text-2xl font-bold text-blue-600 leading-none">
+                                                    {formatCurrency(finalServiceFee * numExchange, 'PHP')}
+                                                </span>
+                                                <span className="text-slate-400 text-[10px] font-bold mt-1 uppercase tracking-widest font-semibold">Philippine Rate</span>
+                                            </div>
+                                        </div>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-8 border-y border-slate-100">
+                                            <div>
+                                                <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1 font-semibold">Monthly Net Profit</p>
+                                                <div className="flex flex-wrap items-baseline gap-2">
+                                                    <span className="text-2xl md:text-3xl font-black text-green-600">{formatCurrency(netProfit, 'USD')}</span>
+                                                    <span className="text-sm md:text-lg font-bold text-green-600/60 font-semibold">({formatCurrency(netProfit * numExchange, 'PHP')})</span>
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1 font-semibold">Efficiency Rating</p>
+                                                <p className="text-2xl md:text-3xl font-black text-blue-700">{actualMarginPercentage.toFixed(1)}% <span className="text-sm font-bold text-blue-300 uppercase tracking-tighter font-semibold text-[10px]">Net Margin</span></p>
+                                            </div>
+                                        </div>
+                                        <div className="mt-8 flex items-start gap-4 bg-blue-50/50 p-5 rounded-2xl border border-blue-100">
+                                            <div className="bg-blue-600 p-2 rounded-lg text-white shrink-0">
+                                                <Icon name="info" className="w-5 h-5 text-white" />
+                                            </div>
+                                            <div>
+                                                <h4 className="font-bold text-blue-900 text-[10px] mb-1 uppercase tracking-widest font-semibold">Operational Decision Logic</h4>
+                                                <p className="text-sm text-blue-800/80 leading-relaxed font-medium">
+                                                    Internal crossover: <strong>{formatCurrency(crossoverCost, 'USD')}</strong>. 
+                                                    Costs are currently {totalInternalCost < crossoverCost ? 'below' : 'above'} this threshold. 
+                                                    <strong> {isFlatFeeBetter ? 'Flat Fee' : 'Percentage Margin'}</strong> is optimal.
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Cost Overview */}
+                                <div className="bg-slate-900 text-white p-6 md:p-8 rounded-2xl shadow-lg border border-slate-800">
+                                    <h3 className="text-xs uppercase tracking-widest font-bold opacity-60 mb-6 font-semibold">Internal Cost Summary</h3>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                        <div className="space-y-1">
+                                            <p className="text-3xl md:text-4xl font-black">{formatCurrency(totalInternalCost, 'USD')}</p>
+                                            <p className="text-lg font-medium opacity-80 text-blue-300 font-semibold">{formatCurrency(totalInternalCost * numExchange, 'PHP')}</p>
+                                        </div>
+                                        <div className="flex flex-col justify-center text-xs text-slate-400 space-y-2">
+                                            <div className="flex justify-between border-b border-slate-800 pb-1">
+                                                <span className="font-semibold uppercase text-[10px] tracking-wider text-slate-400">Base Salary:</span>
+                                                <span className="text-white font-bold">{formatCurrency(numSalary, 'USD')}</span>
+                                            </div>
+                                            <div className="flex justify-between">
+                                                <span className="font-semibold uppercase text-[10px] tracking-wider text-slate-400">Seat Burden:</span>
+                                                <span className="text-white font-bold">{formatCurrency(numBurden, 'USD')}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Comparison Details */}
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className={`p-6 rounded-2xl border transition-all ${isFlatFeeBetter ? 'bg-white border-blue-200 shadow-md ring-1 ring-blue-500' : 'bg-slate-50 border-slate-200 opacity-60'}`}>
+                                        <div className="flex justify-between items-center mb-4 text-slate-800">
+                                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest font-semibold font-semibold">Flat Fee Model Option</span>
+                                            {isFlatFeeBetter && <Icon name="check-circle-2" className="w-5 h-5 text-blue-600" />}
+                                        </div>
+                                        <div className="space-y-1">
+                                            <p className="text-2xl font-black text-slate-800">{formatCurrency(flatFeePrice, 'USD')}</p>
+                                            <p className="text-sm font-bold text-slate-500 font-semibold font-semibold">{formatCurrency(flatFeePrice * numExchange, 'PHP')}</p>
+                                        </div>
+                                        <div className="mt-4 pt-4 border-t border-slate-100 flex justify-between items-end">
+                                            <span className="text-[10px] font-bold text-slate-400 uppercase font-semibold tracking-wider font-semibold">Fixed Profit</span>
+                                            <span className="font-bold text-slate-700 font-semibold font-semibold">{formatCurrency(numFlatFee, 'USD')}</span>
+                                        </div>
+                                    </div>
+
+                                    <div className={`p-6 rounded-2xl border transition-all ${!isFlatFeeBetter ? 'bg-white border-blue-200 shadow-md ring-1 ring-blue-500' : 'bg-slate-50 border-slate-200 opacity-60'}`}>
+                                        <div className="flex justify-between items-center mb-4 text-slate-800">
+                                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest font-semibold font-semibold">{numMargin} Percent Margin Model</span>
+                                            {!isFlatFeeBetter && <Icon name="check-circle-2" className="w-5 h-5 text-blue-600" />}
+                                        </div>
+                                        <div className="space-y-1">
+                                            <p className="text-2xl font-black text-slate-800">{formatCurrency(marginPrice, 'USD')}</p>
+                                            <p className="text-sm font-bold text-slate-500 font-semibold font-semibold">{formatCurrency(marginPrice * numExchange, 'PHP')}</p>
+                                        </div>
+                                        <div className="mt-4 pt-4 border-t border-slate-100 flex justify-between items-end">
+                                            <span className="text-[10px] font-bold text-slate-400 uppercase font-semibold tracking-wider font-semibold">Margin Profit</span>
+                                            <span className="font-bold text-slate-700 font-semibold font-semibold">{formatCurrency(marginPrice - totalInternalCost, 'USD')}</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Security Notification */}
+                                <div className="flex gap-4 p-5 bg-amber-50 rounded-2xl border border-amber-100 text-amber-900/70 text-[10px] italic leading-tight uppercase tracking-wider font-bold">
+                                    <Icon name="alert-circle" className="w-4 h-4 flex-shrink-0 text-amber-600" />
+                                    <p>Confidential: Exchange rates and internal costs are for executive oversight only.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
