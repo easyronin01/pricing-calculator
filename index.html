@@ -4,94 +4,35 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Enhanced Pricing Calculator</title>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/react@17/dist/react.development.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/react-dom@17/dist/react-dom.development.js"></script>
-    <script src="https://unpkg.com/lucide-icons/dist/lucide.min.js"></script>
+    <link rel="stylesheet" href="styles.css">
 </head>
-<body class="bg-gray-100">
-    <div id="calculator" class="container mx-auto mt-10">
-        <h1 class="text-3xl font-bold text-center">Enhanced Pricing Calculator</h1>
-        <div class="text-center mt-4">
-            <label for="seats" class="mr-2">Number of Seats:</label>
-            <input id="seats" type="number" min="1" max="5" class="border p-2" placeholder="1-5" />
-        </div>
-        <div class="text-center mt-4">
-            <label for="profitMargin" class="mr-2">Profit Margin (%):</label>
-            <input id="profitMargin" type="number" class="border p-2" placeholder="Enter percentage" />
-        </div>
-        <div class="text-center mt-4">
-            <button id="calculate" class="bg-blue-500 text-white px-4 py-2">Calculate</button>
-        </div>
-        <div id="output" class="mt-4 text-center"></div>
-        <div id="history" class="mt-6 text-center">
-            <h2>Calculation History</h2>
-            <ul id="historyList"></ul>
-        </div>
-        <div class="text-center mt-4">
-            <button id="exportJson" class="bg-yellow-500 text-white px-4 py-2">Export to JSON</button>
-        </div>
-        <div class="mt-4 text-center">
-            <span>Toggle Dark/Light Mode: </span>
-            <button id="toggleMode" class="bg-gray-400 text-white px-2 py-1">Toggle</button>
-        </div>
+<body>
+    <div class="container">
+        <h1>Pricing Calculator</h1>
+        <form id="calculator-form">
+            <div class="input-group">
+                <label for="seats">Number of Seats (1-5):</label>
+                <input type="number" id="seats" name="seats" min="1" max="5" required>
+            </div>
+            <div class="input-group">
+                <label for="profit-margin">Profit Margin (%):</label>
+                <input type="number" id="profit-margin" name="profit-margin" min="0" step="0.1" required>
+            </div>
+            <div class="input-group">
+                <label for="daily-rate">Daily Rate:</label>
+                <input type="number" id="daily-rate" name="daily-rate" step="0.01" required>
+            </div>
+            <div class="input-group">
+                <label for="hourly-rate">Hourly Rate:</label>
+                <input type="number" id="hourly-rate" name="hourly-rate" step="0.01" required>
+            </div>
+            <button type="submit">Calculate</button>
+        </form>
+        <div id="results"></div>
+        <button id="export-json">Export JSON</button>
+        <div id="history">Calculation History:</div>
+        <button id="toggle-theme">Toggle Dark/Light Mode</button>
     </div>
-    <script>
-        const App = () => {
-            const [history, setHistory] = React.useState([]);
-            const [darkMode, setDarkMode] = React.useState(false);
-
-            const calculate = () => {
-                const seats = document.getElementById('seats').value;
-                const profitMargin = document.getElementById('profitMargin').value;
-                const output = document.getElementById('output');
-                let totalPrice = seats * 100; // Basic calculation 
-                totalPrice += totalPrice * (profitMargin / 100);
-                output.innerHTML = `Total Price: $${totalPrice.toFixed(2)}`;
-                setHistory(prev => [...prev, totalPrice.toFixed(2)]);
-            };
-
-            React.useEffect(() => {
-                document.getElementById('calculate').addEventListener('click', calculate);
-                document.getElementById('exportJson').addEventListener('click', () => {
-                    const json = JSON.stringify(history);
-                    const blob = new Blob([json], { type: 'application/json' });
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = 'history.json';
-                    a.click();
-                });
-                document.getElementById('toggleMode').addEventListener('click', () => {
-                    setDarkMode(!darkMode);
-                });
-
-                document.addEventListener('keydown', (e) => {
-                    if (e.key === 'Enter') {
-                        calculate();
-                    }
-                });
-
-                return () => {
-                    // Clean up listeners
-                };
-            }, [history, darkMode]);
-
-            React.useEffect(() => {
-                const historyList = document.getElementById('historyList');
-                historyList.innerHTML = '';
-                history.forEach(item => {
-                    const li = document.createElement('li');
-                    li.textContent = item;
-                    historyList.appendChild(li);
-                });
-                document.body.className = darkMode ? 'bg-gray-800 text-white' : 'bg-gray-100 text-black';
-            }, [history, darkMode]);
-
-            return null;
-        };
-
-        ReactDOM.render(<App />, document.getElementById('calculator'));
-    </script>
+    <script src="script.js"></script>
 </body>
 </html>
