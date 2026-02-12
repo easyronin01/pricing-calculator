@@ -1,10 +1,12 @@
 {
   "name": "pricing-calculator",
   "version": "1.0.0",
+  "description": "Operational Pricing Tool developed by Your Name",
   "main": "main.js",
+  "author": "EasyRonin01",
   "scripts": {
     "start": "electron .",
-    "package": "electron-packager . PricingCalculator --platform=win32 --arch=x64"
+    "package": "electron-packager . PricingCalculator --platform=win32 --arch=x64 --overwrite"
   },
   "devDependencies": {
     "electron": "^40.4.0",
