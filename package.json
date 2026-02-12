@@ -11,8 +11,7 @@
     "appId": "com.gianni.pricingcalculator",
     "productName": "Pricing Calculator",
     "win": {
-      "target": "nsis",
-      "icon": "icon.ico"
+      "target": "nsis"
     },
     "nsis": {
       "oneClick": false,
