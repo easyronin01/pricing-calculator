@@ -1,7 +1,7 @@
 {
-  "name": "pricing-calculator",
+  "name": "operations-calculator",
   "version": "2.0.0",
-  "description": "Executive Decision Matrix for Pricing Strategy",
+  "description": "Pricing Strategy for Operations",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
@@ -9,7 +9,7 @@
   },
   "build": {
     "appId": "com.gianni.pricingcalculator",
-    "productName": "Pricing Strategy Matrix",
+    "productName": "Operations Calculator",
     "compression": "maximum",
     "asar": true,
     "win": {
@@ -20,7 +20,7 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "Pricing Strategy Matrix"
+      "shortcutName": "Operations Calculator"
     }
   },
   "devDependencies": {
