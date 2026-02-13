@@ -1,0 +1,23 @@
+Dependency directories
+
+node_modules/
+
+Build output directories (Universal Wildcards)
+
+dist/
+out/
+PricingCalculator-/
+Strategy Matrix-/
+
+Specific heavy files
+
+*.exe
+*.zip
+*.7z
+*.rar
+
+System and Log files
+
+.DS_Store
+Thumbs.db
+npm-debug.log*
