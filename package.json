@@ -1,6 +1,6 @@
 {
   "name": "operations-calculator",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "description": "Pricing Strategy for Operations",
   "main": "main.js",
   "scripts": {
@@ -8,19 +8,22 @@
     "build": "electron-builder"
   },
   "build": {
-    "appId": "com.gianni.pricingcalculator",
+    "appId": "com.gianni.operationscalculator",
     "productName": "Operations Calculator",
+    "executableName": "OperationsCalculator",
     "compression": "maximum",
     "asar": true,
     "win": {
-      "target": "nsis"
+      "target": "nsis",
+      "icon": "icon.ico"
     },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "Operations Calculator"
+      "shortcutName": "Operations Calculator",
+      "allowElevation": true
     }
   },
   "devDependencies": {
