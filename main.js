@@ -1,43 +1,60 @@
+/**
+ * Main Entry Point for the Pricing Strategy Matrix
+ * This script manages the application window and loads the user interface.
+ */
+
 const { app, BrowserWindow } = require('electron');
 const path = require('path');
 
 function createWindow() {
-    // We create the browser window with specialized settings for our strategy matrix.
-    // We have set the width to twelve hundred and the height to eight hundred pixels.
-    const win = new BrowserWindow({
+    /**
+     * Create the browser window with dimensions optimized for high resolution displays.
+     * We have ensured that the menu bar is hidden to maintain a professional look.
+     */
+    const mainWindow = new BrowserWindow({
         width: 1200,
-        height: 800,
-        title: "Pricing Strategy Matrix",
-        backgroundColor: '#f8fafc', // This matches the slate background to prevent white flashes.
+        height: 900,
         webPreferences: {
+            // Security settings to protect your operational data.
             nodeIntegration: false,
-            contextIsolation: true,
-            spellcheck: false
-        }
+            contextIsolation: true
+        },
+        autoHideMenuBar: true,
+        title: "Pricing Strategy Matrix"
     });
 
-    // We point specifically to index.html as you confirmed this is the filename on your laptop.
-    // Using path.join ensures that the file is located correctly within your folder structure.
-    win.loadFile(path.join(__dirname, 'index.html'));
+    /**
+     * Set the path to the interface file. 
+     * We use path.join to ensure compatibility with your current directory 
+     * on the C drive of the RTO Laptop 1.
+     */
+    const filePath = path.join(__dirname, 'index.html');
 
-    // We disable the menu bar to keep the interface focused and immersive.
-    win.setMenuBarVisibility(false);
+    mainWindow.loadFile(filePath).catch(error => {
+        console.error("The system failed to find index.html in the current folder:", error);
+    });
 }
 
-// This method will be called when Electron has finished initialization and is ready to create browser windows.
+/**
+ * Standard Electron lifecycle management.
+ * The application initiates once the shipyard is ready.
+ */
 app.whenReady().then(() => {
     createWindow();
 
-    app.on('activate', () => {
-        // On macOS it is common to re-create a window in the app when the dock icon is clicked.
+    app.on('activate', function () {
+        // Re-create the window if the dock icon is clicked (macOS behavior).
         if (BrowserWindow.getAllWindows().length === 0) {
             createWindow();
         }
     });
 });
 
-// Quit when all windows are closed, except on macOS where applications stay active.
-app.on('window-all-closed', () => {
+/**
+ * Ensures the application shuts down completely when the window is closed,
+ * keeping your laptop's memory clear of any background tasks.
+ */
+app.on('window-all-closed', function () {
     if (process.platform !== 'darwin') {
         app.quit();
     }
