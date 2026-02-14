@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Client Fee Calculator</title>
+    <title>Operations Calculator</title>
     <!-- App Icon: Place an 'icon.png' file in your project folder -->
     <link rel="icon" type="image/png" href="icon.png">
     
@@ -17,8 +17,8 @@
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
-    <!-- Added SheetJS for Excel Export -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <!-- SheetJS for Excel Export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous"></script>
     
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap');
@@ -48,13 +48,11 @@
             margin: 0;
         }
         
-        /* Adjusted padding to account for fixed header but allow sticky positioning to work relative to it */
         .main-content {
             padding-top: 20px; 
             padding-bottom: 200px;
         }
         
-        /* Add padding to the top of the root to offset the fixed header */
         #root {
             padding-top: 64px;
         }
@@ -62,6 +60,15 @@
             #root {
                 padding-top: 80px;
             }
+        }
+
+        /* Custom animation for notifications */
+        @keyframes slideIn {
+            from { transform: translateY(100%); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        .animate-notification {
+            animation: slideIn 0.3s ease-out forwards;
         }
     </style>
 </head>
@@ -150,7 +157,7 @@
         };
 
         const App = () => {
-            const [activeTab, setActiveTab] = useState('calculator'); // 'calculator' or 'overhead'
+            const [activeTab, setActiveTab] = useState('calculator'); 
             const [isDarkMode, setIsDarkMode] = useState(true);
             const [numberOfSeats, setNumberOfSeats] = useState(1);
             const [exchangeRate, setExchangeRate] = useState(57);
@@ -163,8 +170,8 @@
             const [isTemplateEnabled, setIsTemplateEnabled] = useState(false);
             const [clientFilter, setClientFilter] = useState("All");
             const [isFilterDropdownOpen, setIsFilterDropdownOpen] = useState(false);
+            const [notification, setNotification] = useState(null);
             
-            // Network & Rate States
             const [onlineRate, setOnlineRate] = useState(null);
             const [isOnline, setIsOnline] = useState(navigator.onLine);
             const [rateError, setRateError] = useState(false);
@@ -182,10 +189,14 @@
                     overheadPhp: "0.00",
                     flatFee: "0", 
                     isLocked: false, 
-                    lockedTotalBilling: 0, 
-                    growthFields: [] 
+                    lockedTotalBilling: 0
                 }
             ]);
+
+            const showNotification = (message, type = "info") => {
+                setNotification({ message, type });
+                setTimeout(() => setNotification(null), 4000);
+            };
 
             useEffect(() => {
                 const handleGlobalWheel = (event) => {
@@ -200,11 +211,10 @@
                     }
                 };
 
-                // Network Status Listeners
                 const handleOnline = () => {
                     setIsOnline(true);
                     setRateError(false);
-                    fetchRate(); // Retry fetch immediately when back online
+                    fetchRate(); 
                 };
                 const handleOffline = () => {
                     setIsOnline(false);
@@ -241,10 +251,7 @@
                         });
                 };
 
-                // Initial fetch
                 fetchRate();
-
-                // Auto-refresh every 60 seconds (60000 ms)
                 const intervalId = setInterval(fetchRate, 60000);
 
                 return () => {
@@ -268,7 +275,6 @@
                 }
             }, [isDarkMode]);
 
-            // Update main state when exchange rate changes
             useEffect(() => {
                 setSeats(previousSeats => previousSeats.map(seat => ({
                     ...seat,
@@ -276,12 +282,10 @@
                     overheadPhp: seat.overhead ? (parseFloat(seat.overhead) * exchangeRate).toFixed(2) : ""
                 })));
                 
-                // Recalculate global overhead php if manual
                 if (globalOverhead && overheadItems.length === 0) {
                     setGlobalOverheadPhp((parseFloat(globalOverhead) * exchangeRate).toFixed(2));
                 }
 
-                // Update overhead items conversions
                 setOverheadItems(prevItems => prevItems.map(item => ({
                     ...item,
                     costPhp: item.costUsd ? (parseFloat(item.costUsd) * exchangeRate).toFixed(2) : ""
@@ -289,7 +293,6 @@
 
             }, [exchangeRate]);
 
-            // Sync Breakdown to Global Overhead
             useEffect(() => {
                 if (overheadItems.length > 0) {
                     const totalUsd = overheadItems.reduce((sum, item) => sum + (parseFloat(item.costUsd) || 0), 0);
@@ -299,7 +302,6 @@
                     updateSeatsWithNewOverhead(totalUsdStr);
                 }
             }, [overheadItems, exchangeRate]);
-
 
             useEffect(() => {
                 const number = parseInt(numberOfSeats) || 1;
@@ -320,8 +322,7 @@
                             overheadPhp: template ? template.overheadPhp : "0.00",
                             flatFee: template ? template.flatFee : "0",
                             isLocked: false, 
-                            lockedTotalBilling: 0,
-                            growthFields: []
+                            lockedTotalBilling: 0
                         }));
                         newSeats = [...previousSeats, ...addedSeats];
                     } else if (clampedNumber < previousSeats.length) {
@@ -335,11 +336,11 @@
                         return newSeats.map(seat => {
                             const updated = { ...seat, overhead: perSeat };
                             updated.overheadPhp = (parseFloat(perSeat) * exchangeRate).toFixed(2);
-                            if (updated.isLocked && updated.growthFields.includes('overhead')) {
+                            
+                            if (updated.isLocked) {
                                 const s = parseFloat(updated.salary) || 0;
                                 const o = parseFloat(perSeat) || 0;
-                                const f = parseFloat(updated.flatFee) || 0;
-                                updated.lockedTotalBilling = s + o + f;
+                                updated.flatFee = (updated.lockedTotalBilling - (s + o)).toFixed(2);
                             }
                             return updated;
                         });
@@ -356,11 +357,11 @@
                 setSeats(previousSeats => previousSeats.map(seat => {
                     const updated = { ...seat, overhead: perSeat };
                     updated.overheadPhp = (parseFloat(perSeat) * exchangeRate).toFixed(2);
-                    if (seat.isLocked && seat.growthFields.includes('overhead')) {
+                    
+                    if (updated.isLocked) {
                         const s = parseFloat(updated.salary) || 0;
                         const o = parseFloat(perSeat) || 0;
-                        const f = parseFloat(updated.flatFee) || 0;
-                        updated.lockedTotalBilling = s + o + f;
+                        updated.flatFee = (updated.lockedTotalBilling - (s + o)).toFixed(2);
                     }
                     return updated;
                 }));
@@ -379,13 +380,16 @@
                 updateSeatsWithNewOverhead(usdValue);
             };
 
-            // Overhead Breakdown Logic
             const addOverheadItem = () => {
                 setOverheadItems([...overheadItems, { id: Date.now(), category: "", name: "", costUsd: "", costPhp: "" }]);
             };
 
             const removeOverheadItem = (id) => {
-                setOverheadItems(overheadItems.filter(item => item.id !== id));
+                const updatedItems = overheadItems.filter(item => item.id !== id);
+                setOverheadItems(updatedItems);
+                if (updatedItems.length === 0) {
+                    handleGlobalOverheadChange("0");
+                }
             };
 
             const updateOverheadItem = (id, field, value) => {
@@ -403,7 +407,6 @@
                 }));
             };
 
-            // Seat Logic
             const resetSeat = (id) => {
                 setSeats(prev => prev.map(seat => {
                     if (seat.id === id) {
@@ -418,8 +421,7 @@
                             overheadPhp: "0.00",
                             flatFee: "0",
                             isLocked: false,
-                            lockedTotalBilling: 0,
-                            growthFields: []
+                            lockedTotalBilling: 0
                         };
                     }
                     return seat;
@@ -442,25 +444,13 @@
                             updatedSeat.overhead = rawValue ? (parseFloat(rawValue) / exchangeRate).toFixed(2) : "";
                         }
 
-                        const baseField = field.endsWith('Php') ? field.replace('Php', '') : field;
-                        if (seat.isLocked && seat.growthFields.includes(baseField)) {
+                        if (updatedSeat.isLocked && (field.includes('salary') || field.includes('overhead'))) {
                             const s = parseFloat(updatedSeat.salary) || 0;
                             const o = parseFloat(updatedSeat.overhead) || 0;
-                            const f = parseFloat(updatedSeat.flatFee) || 0;
-                            updatedSeat.lockedTotalBilling = s + o + f;
+                            updatedSeat.flatFee = (updatedSeat.lockedTotalBilling - (s + o)).toFixed(2);
                         }
-                        return updatedSeat;
-                    }
-                    return seat;
-                }));
-            };
 
-            const finalizeFieldSetup = (id, field) => {
-                const baseField = field.endsWith('Php') ? field.replace('Php', '') : field;
-                setSeats(previousSeats => previousSeats.map(seat => {
-                    if (seat.id === id && seat.isLocked && seat.growthFields.includes(baseField)) {
-                        const val = parseFloat(seat[baseField]) || 0;
-                        if (val > 0) return { ...seat, growthFields: seat.growthFields.filter(f => f !== baseField) };
+                        return updatedSeat;
                     }
                     return seat;
                 }));
@@ -473,12 +463,12 @@
                         const overheadValue = parseFloat(seat.overhead) || 0;
                         const flatFeeValue = parseFloat(seat.flatFee) || 0;
                         const currentTotal = salaryValue + overheadValue + flatFeeValue;
-                        const activeGrowth = [];
-                        if (!seat.isLocked) {
-                            if (salaryValue === 0) activeGrowth.push('salary');
-                            if (overheadValue === 0) activeGrowth.push('overhead');
-                        }
-                        return { ...seat, isLocked: !seat.isLocked, lockedTotalBilling: !seat.isLocked ? currentTotal : 0, growthFields: activeGrowth };
+                        
+                        return { 
+                            ...seat, 
+                            isLocked: !seat.isLocked, 
+                            lockedTotalBilling: !seat.isLocked ? currentTotal : 0 
+                        };
                     }
                     return seat;
                 }));
@@ -512,10 +502,11 @@
                     accumulator.totalCharge += metrics.clientFee;
                     accumulator.totalProfit += metrics.profit;
                     accumulator.totalSalary += (parseFloat(seat.salary) || 0);
+                    accumulator.totalOverhead += (parseFloat(seat.overhead) || 0);
                     accumulator.totalPhp += metrics.phpCharge;
                     accumulator.sumMargins += metrics.profitMargin;
                     return accumulator;
-                }, { totalCharge: 0, totalProfit: 0, totalSalary: 0, totalPhp: 0, sumMargins: 0 });
+                }, { totalCharge: 0, totalProfit: 0, totalSalary: 0, totalOverhead: 0, totalPhp: 0, sumMargins: 0 });
             }, [filteredSeats, exchangeRate]);
 
             const averageProfitMargin = filteredSeats.length > 0 ? totals.sumMargins / filteredSeats.length : 0;
@@ -537,7 +528,7 @@
                 setOverheadItems([]);
                 setIsTemplateEnabled(false);
                 setClientFilter("All");
-                setSeats([{ id: Date.now(), name: "Seat 1", clientName: "", salary: "0", salaryPhp: "0.00", overhead: "0", overheadPhp: "0.00", flatFee: "0", isLocked: false, lockedTotalBilling: 0, growthFields: [] }]);
+                setSeats([{ id: Date.now(), name: "Seat 1", clientName: "", salary: "0", salaryPhp: "0.00", overhead: "0", overheadPhp: "0.00", flatFee: "0", isLocked: false, lockedTotalBilling: 0 }]);
             };
 
             const formatCurrency = (amount) => amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -559,100 +550,98 @@
                 return clientFilter.split(' ')[0].toUpperCase();
             };
 
-            // Excel Report Generation
+            // Improved Generate Report with Fallback Download Method
             const handleGenerateReport = () => {
                 if (!window.XLSX) {
-                    alert("Export functionality unavailable. Please check internet connection to load libraries.");
+                    showNotification("Excel library failed to load. Please check your internet connection.", "error");
                     return;
                 }
 
-                const wb = XLSX.utils.book_new();
-                const dateStr = new Date().toLocaleDateString().replace(/\//g, "-");
+                try {
+                    const wb = XLSX.utils.book_new();
+                    const dateStr = new Date().toLocaleDateString().replace(/\//g, "-");
 
-                // --- SHEET 1: SUMMARY ---
-                const summaryData = [
-                    ["CLIENT FEE CALCULATOR - SUMMARY REPORT"],
-                    ["Generated on:", new Date().toLocaleString()],
-                    [],
-                    ["GLOBAL SETTINGS"],
-                    ["Base Exchange Rate", `1 USD = ${exchangeRate} PHP`],
-                    ["Total Active Units", seats.length],
-                    [],
-                    ["FINANCIAL OVERVIEW (MONTHLY)"],
-                    ["Total Revenue (Client Fee)", `$${formatCurrency(totals.totalCharge)}`],
-                    ["Total Cost (Salary)", `$${formatCurrency(totals.totalSalary)}`],
-                    ["Total Profit", `$${formatCurrency(totals.totalProfit)}`],
-                    ["Average Profit Margin", `${averageProfitMargin.toFixed(2)}%`],
-                    ["Total PHP Volume", `₱${formatCurrency(totals.totalPhp)}`]
-                ];
-                const wsSummary = XLSX.utils.aoa_to_sheet(summaryData);
-                
-                // Style columns width
-                wsSummary['!cols'] = [{ wch: 30 }, { wch: 25 }];
-                XLSX.utils.book_append_sheet(wb, wsSummary, "Dashboard Summary");
-
-                // --- SHEET 2: OPERATIONAL UNITS ---
-                const seatHeaders = [
-                    "Seat ID", 
-                    "Employee Name", 
-                    "Client Name", 
-                    "Salary (USD)", 
-                    "Salary (PHP)", 
-                    "Overhead (USD)", 
-                    "Overhead (PHP)", 
-                    "Mgmt Fee (USD)", 
-                    "Mgmt Fee (PHP)", 
-                    "Total Client Fee (USD)", 
-                    "Total Client Fee (PHP)", 
-                    "Profit (USD)", 
-                    "Margin (%)", 
-                    "Hourly Rate (USD)"
-                ];
-                
-                const seatRows = seats.map((seat, index) => {
-                    const m = getSeatMetrics(seat);
-                    return [
-                        index + 1,
-                        seat.name,
-                        seat.clientName,
-                        parseFloat(seat.salary) || 0,
-                        parseFloat(seat.salaryPhp) || 0,
-                        parseFloat(seat.overhead) || 0,
-                        parseFloat(seat.overheadPhp) || 0,
-                        parseFloat(seat.flatFee) || 0,
-                        (parseFloat(seat.flatFee) || 0) * exchangeRate,
-                        m.clientFee,
-                        m.phpCharge,
-                        m.profit,
-                        parseFloat(m.profitMargin.toFixed(2)),
-                        parseFloat(m.hourlyRate.toFixed(2))
+                    const summaryData = [
+                        ["OPERATIONS CALCULATOR - SUMMARY REPORT"],
+                        ["Generated on:", new Date().toLocaleString()],
+                        [],
+                        ["GLOBAL SETTINGS"],
+                        ["Base Exchange Rate", `1 USD = ${exchangeRate} PHP`],
+                        ["Total Active Units", seats.length],
+                        [],
+                        ["FINANCIAL OVERVIEW (MONTHLY)"],
+                        ["Total Revenue (Client Fee)", `$${formatCurrency(totals.totalCharge)}`],
+                        ["Total Cost (Salary)", `$${formatCurrency(totals.totalSalary)}`],
+                        ["Total Overhead", `$${formatCurrency(totals.totalOverhead)}`],
+                        ["Total Profit", `$${formatCurrency(totals.totalProfit)}`],
+                        ["Average Profit Margin", `${averageProfitMargin.toFixed(2)}%`],
+                        ["Total Philippine Peso Volume", `₱${formatCurrency(totals.totalPhp)}`]
                     ];
-                });
+                    const wsSummary = XLSX.utils.aoa_to_sheet(summaryData);
+                    wsSummary['!cols'] = [{ wch: 30 }, { wch: 25 }];
+                    XLSX.utils.book_append_sheet(wb, wsSummary, "Dashboard Summary");
 
-                const wsSeats = XLSX.utils.aoa_to_sheet([seatHeaders, ...seatRows]);
-                wsSeats['!cols'] = seatHeaders.map(() => ({ wch: 18 })); // Set default column width
-                XLSX.utils.book_append_sheet(wb, wsSeats, "Operational Units");
+                    const seatHeaders = [
+                        "Seat ID", "Employee Name", "Client Name", "Salary (USD)", "Salary (PHP)", 
+                        "Overhead (USD)", "Overhead (PHP)", "Management Fee (USD)", "Management Fee (PHP)", 
+                        "Total Client Fee (USD)", "Total Client Fee (PHP)", "Profit (USD)", "Margin (%)", "Hourly Rate (USD)"
+                    ];
+                    
+                    const seatRows = seats.map((seat, index) => {
+                        const m = getSeatMetrics(seat);
+                        return [
+                            index + 1, seat.name, seat.clientName,
+                            parseFloat(seat.salary) || 0, parseFloat(seat.salaryPhp) || 0,
+                            parseFloat(seat.overhead) || 0, parseFloat(seat.overheadPhp) || 0,
+                            parseFloat(seat.flatFee) || 0, (parseFloat(seat.flatFee) || 0) * exchangeRate,
+                            m.clientFee, m.phpCharge, m.profit,
+                            parseFloat(m.profitMargin.toFixed(2)), parseFloat(m.hourlyRate.toFixed(2))
+                        ];
+                    });
 
-                // --- SHEET 3: OVERHEAD BREAKDOWN ---
-                if (overheadItems.length > 0) {
-                    const overheadHeaders = ["Category", "Description", "Cost (USD)", "Cost (PHP)"];
-                    const overheadRows = overheadItems.map(item => [
-                        item.category,
-                        item.name,
-                        parseFloat(item.costUsd) || 0,
-                        parseFloat(item.costPhp) || 0
-                    ]);
-                    // Add Total Row
-                    overheadRows.push([]);
-                    overheadRows.push(["TOTAL OVERHEAD", "", parseFloat(globalOverhead) || 0, parseFloat(globalOverheadPhp) || 0]);
+                    const wsSeats = XLSX.utils.aoa_to_sheet([seatHeaders, ...seatRows]);
+                    wsSeats['!cols'] = seatHeaders.map(() => ({ wch: 18 }));
+                    XLSX.utils.book_append_sheet(wb, wsSeats, "Operational Units");
 
-                    const wsOverhead = XLSX.utils.aoa_to_sheet([overheadHeaders, ...overheadRows]);
-                    wsOverhead['!cols'] = [{ wch: 20 }, { wch: 40 }, { wch: 15 }, { wch: 15 }];
-                    XLSX.utils.book_append_sheet(wb, wsOverhead, "Overhead Breakdown");
+                    if (overheadItems.length > 0) {
+                        const overheadHeaders = ["Category", "Description", "Cost (USD)", "Cost (PHP)"];
+                        const overheadRows = overheadItems.map(item => [
+                            item.category, item.name, parseFloat(item.costUsd) || 0, parseFloat(item.costPhp) || 0
+                        ]);
+                        overheadRows.push([]);
+                        overheadRows.push(["TOTAL OVERHEAD COST", "", parseFloat(globalOverhead) || 0, parseFloat(globalOverheadPhp) || 0]);
+
+                        const wsOverhead = XLSX.utils.aoa_to_sheet([overheadHeaders, ...overheadRows]);
+                        wsOverhead['!cols'] = [{ wch: 20 }, { wch: 40 }, { wch: 15 }, { wch: 15 }];
+                        XLSX.utils.book_append_sheet(wb, wsOverhead, "Overhead Breakdown");
+                    }
+
+                    // Robust download method for local file execution
+                    const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'binary' });
+                    const s2ab = (s) => {
+                        const buf = new ArrayBuffer(s.length);
+                        const view = new Uint8Array(buf);
+                        for (let i = 0; i !== s.length; ++i) view[i] = s.charCodeAt(i) & 0xFF;
+                        return buf;
+                    };
+                    const blob = new Blob([s2ab(wbout)], { type: "application/octet-stream" });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement("a");
+                    a.href = url;
+                    a.download = `Operations_Calculator_Report_${dateStr}.xlsx`;
+                    document.body.appendChild(a);
+                    a.click();
+                    setTimeout(() => {
+                        document.body.removeChild(a);
+                        window.URL.revokeObjectURL(url);
+                    }, 0);
+
+                    showNotification("Report generated successfully!", "success");
+
+                } catch (error) {
+                    console.error("Report generation failed:", error);
+                    showNotification("Failed to generate report. Check console for details.", "error");
                 }
-
-                // Export
-                XLSX.writeFile(wb, `Client_Fee_Report_${dateStr}.xlsx`);
             };
 
             return (
@@ -664,7 +653,7 @@
                                     <Icon name="trending-up" className="w-5 h-5 text-white" />
                                 </div>
                                 <div className="hidden sm:block">
-                                    <h1 className="text-lg md:text-xl font-black tracking-tight text-slate-900 dark:text-slate-50">Client Fee Calculator</h1>
+                                    <h1 className="text-lg md:text-xl font-black tracking-tight text-slate-900 dark:text-slate-50">Operations Calculator</h1>
                                     <p className={`text-[9px] uppercase font-bold tracking-widest ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>Sustainable Profit Protection</p>
                                 </div>
                             </div>
@@ -677,12 +666,9 @@
                     </header>
 
                     <main className="max-w-7xl mx-auto px-4 main-content">
-                        {/* STICKY DASHBOARD SECTION */}
+                        {/* THE STICKY DASHBOARD */}
                         <div className={`sticky top-16 md:top-20 z-40 pb-6 pt-4 -mx-4 px-4 border-b transition-colors duration-300 ${isDarkMode ? 'bg-slate-900/95 border-slate-800' : 'bg-slate-50/95 border-slate-200'} backdrop-blur-sm`}>
-                            
-                            {/* Controls Row: Tabs (Left) + Operational Controls (Right) */}
                             <div className="flex flex-col md:flex-row items-center justify-between gap-4 mb-4">
-                                {/* Tab Navigation - Left */}
                                 <div className={`p-1 rounded-xl flex gap-1 ${isDarkMode ? 'bg-slate-800 border border-slate-700' : 'bg-slate-100 border border-slate-200'}`}>
                                     <button onClick={() => setActiveTab('calculator')} className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'calculator' ? 'bg-blue-600 text-white shadow-md' : (isDarkMode ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-slate-900')}`}>
                                         Calculator
@@ -692,7 +678,6 @@
                                     </button>
                                 </div>
 
-                                {/* Operational Controls - Right (Moved from body) */}
                                 <div className="flex flex-col items-end gap-1 w-full md:w-auto">
                                     <div className="flex flex-wrap justify-end items-center gap-2 w-full">
                                         <div className="relative w-36 md:w-44" ref={filterRef}>
@@ -718,13 +703,10 @@
                                 </div>
                             </div>
 
-                            {/* Top Stats Grid - Persistent across tabs */}
                             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                                 <div className={`p-4 rounded-2xl border ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200 shadow-sm'}`}>
                                     <div className="flex justify-between items-center mb-1.5">
                                         <label className="block text-[10px] font-black uppercase text-blue-500">Base Exchange Rate</label>
-                                        
-                                        {/* Status Indicator Logic */}
                                         {(!isOnline || rateError) ? (
                                             <div className="flex items-center gap-1.5" title="Connection lost">
                                                 <div className="w-1.5 h-1.5 rounded-full bg-red-500"></div>
@@ -737,7 +719,6 @@
                                             </div>
                                         ) : null}
                                     </div>
-                                    
                                     <div className="flex items-center gap-2">
                                         <div className="relative flex-1">
                                             <span className="absolute left-3 top-1/2 -translate-y-1/2 font-bold text-slate-400 text-sm">1 USD :</span>
@@ -745,27 +726,12 @@
                                             <span className="absolute right-3 top-1/2 -translate-y-1/2 font-bold text-slate-400 text-sm">PHP</span>
                                         </div>
                                         <div className="flex items-center">
-                                            <button 
-                                                onClick={() => setExchangeRate(prev => Math.max(0, (parseFloat(prev) || 0) - 1))}
-                                                className={`w-9 h-9 flex items-center justify-center rounded-xl rounded-r-none border border-r-0 transition-all ${isDarkMode ? 'bg-slate-900 border-slate-700 hover:bg-slate-700' : 'bg-slate-50 border-slate-200 hover:bg-slate-100'}`}
-                                            >
-                                                <Icon name="minus" className="w-4 h-4" />
-                                            </button>
-                                            <button 
-                                                onClick={() => setExchangeRate(prev => (parseFloat(prev) || 0) + 1)}
-                                                className={`w-9 h-9 flex items-center justify-center rounded-xl rounded-l-none border transition-all ${isDarkMode ? 'bg-slate-900 border-slate-700 hover:bg-slate-700' : 'bg-slate-50 border-slate-200 hover:bg-slate-100'}`}
-                                            >
-                                                <Icon name="plus" className="w-4 h-4" />
-                                            </button>
+                                            <button onClick={() => setExchangeRate(prev => Math.max(0, (parseFloat(prev) || 0) - 1))} className={`w-9 h-9 flex items-center justify-center rounded-xl rounded-r-none border border-r-0 transition-all ${isDarkMode ? 'bg-slate-900 border-slate-700 hover:bg-slate-700' : 'bg-slate-50 border-slate-200 hover:bg-slate-100'}`}><Icon name="minus" className="w-4 h-4" /></button>
+                                            <button onClick={() => setExchangeRate(prev => (parseFloat(prev) || 0) + 1)} className={`w-9 h-9 flex items-center justify-center rounded-xl rounded-l-none border transition-all ${isDarkMode ? 'bg-slate-900 border-slate-700 hover:bg-slate-700' : 'bg-slate-50 border-slate-200 hover:bg-slate-100'}`}><Icon name="plus" className="w-4 h-4" /></button>
                                         </div>
                                     </div>
                                     {onlineRate && isOnline && !rateError && (
-                                        <button 
-                                            onClick={() => setExchangeRate(onlineRate)}
-                                            className={`w-full mt-2 py-1 text-[9px] font-bold uppercase tracking-widest rounded-lg border transition-all ${isDarkMode ? 'border-slate-700 text-slate-400 hover:bg-slate-700 hover:text-white' : 'border-slate-200 text-slate-500 hover:bg-slate-100 hover:text-slate-900'}`}
-                                        >
-                                            Apply Live Rate (₱{onlineRate.toFixed(2)})
-                                        </button>
+                                        <button onClick={() => setExchangeRate(onlineRate)} className={`w-full mt-2 py-1 text-[9px] font-bold uppercase tracking-widest rounded-lg border transition-all ${isDarkMode ? 'border-slate-700 text-slate-400 hover:bg-slate-700 hover:text-white' : 'border-slate-200 text-slate-500 hover:bg-slate-100 hover:text-slate-900'}`}>Apply Live Rate (₱{onlineRate.toFixed(2)})</button>
                                     )}
                                 </div>
                                 <div className={`p-4 rounded-2xl border ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200 shadow-sm'}`}>
@@ -776,34 +742,10 @@
                                     </div>
                                 </div>
                                 <div className={`p-4 rounded-2xl border ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200 shadow-sm'}`}>
-                                    <div className="flex items-center justify-between mb-1.5">
-                                        <label className="text-[10px] font-black uppercase text-indigo-500">Total Overhead Cost</label>
-                                        {overheadItems.length > 0 && <span className="text-[9px] font-bold text-blue-500 bg-blue-500/10 px-2 py-0.5 rounded-full">Synced to Breakdown</span>}
-                                        <Icon name="split" className="w-3 h-3 text-slate-400" />
-                                    </div>
+                                    <div className="flex items-center justify-between mb-1.5"><label className="text-[10px] font-black uppercase text-indigo-500">Total Overhead Cost</label>{overheadItems.length > 0 && <span className="text-[9px] font-bold text-blue-500 bg-blue-500/10 px-2 py-0.5 rounded-full">Synced to Breakdown</span>}<Icon name="split" className="w-3 h-3 text-slate-400" /></div>
                                     <div className="grid grid-cols-2 gap-3">
-                                        <div className="relative">
-                                            <span className="absolute left-3 top-1/2 -translate-y-1/2 font-bold text-slate-400 text-sm">$</span>
-                                            <SmartInput 
-                                                inputMode="decimal" 
-                                                placeholder="0.00" 
-                                                value={globalOverhead} 
-                                                onChange={handleGlobalOverheadChange} 
-                                                readOnly={overheadItems.length > 0}
-                                                className={`w-full pl-7 pr-3 py-2 rounded-xl border font-bold text-sm outline-none ${overheadItems.length > 0 ? (isDarkMode ? 'bg-slate-900/50 text-slate-500 border-slate-800 cursor-not-allowed' : 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed') : (isDarkMode ? 'bg-slate-900 border-slate-700 text-white' : 'bg-slate-50 border-slate-200')}`} 
-                                            />
-                                        </div>
-                                        <div className="relative">
-                                            <span className="absolute left-3 top-1/2 -translate-y-1/2 font-bold text-slate-400 text-sm">₱</span>
-                                            <SmartInput 
-                                                inputMode="decimal" 
-                                                placeholder="0.00" 
-                                                value={globalOverheadPhp} 
-                                                onChange={handleGlobalOverheadPhpChange} 
-                                                readOnly={overheadItems.length > 0}
-                                                className={`w-full pl-7 pr-3 py-2 rounded-xl border font-bold text-sm outline-none ${overheadItems.length > 0 ? (isDarkMode ? 'bg-slate-900/50 text-slate-500 border-slate-800 cursor-not-allowed' : 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed') : (isDarkMode ? 'bg-slate-900 border-slate-700 text-white' : 'bg-slate-50 border-slate-200')}`} 
-                                            />
-                                        </div>
+                                        <div className="relative"><span className="absolute left-3 top-1/2 -translate-y-1/2 font-bold text-slate-400 text-sm">$</span><SmartInput inputMode="decimal" placeholder="0.00" value={globalOverhead} onChange={handleGlobalOverheadChange} readOnly={overheadItems.length > 0} className={`w-full pl-7 pr-3 py-2 rounded-xl border font-bold text-sm outline-none ${overheadItems.length > 0 ? (isDarkMode ? 'bg-slate-900/50 text-slate-500 border-slate-800 cursor-not-allowed' : 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed') : (isDarkMode ? 'bg-slate-900 border-slate-700 text-white' : 'bg-slate-50 border-slate-200')}`} /></div>
+                                        <div className="relative"><span className="absolute left-3 top-1/2 -translate-y-1/2 font-bold text-slate-400 text-sm">₱</span><SmartInput inputMode="decimal" placeholder="0.00" value={globalOverheadPhp} onChange={handleGlobalOverheadPhpChange} readOnly={overheadItems.length > 0} className={`w-full pl-7 pr-3 py-2 rounded-xl border font-bold text-sm outline-none ${overheadItems.length > 0 ? (isDarkMode ? 'bg-slate-900/50 text-slate-500 border-slate-800 cursor-not-allowed' : 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed') : (isDarkMode ? 'bg-slate-900 border-slate-700 text-white' : 'bg-slate-50 border-slate-200')}`} /></div>
                                     </div>
                                     <p className="text-[8px] font-bold text-slate-400 mt-1 uppercase tracking-tight">* Automatically divides by {numberOfSeats} units</p>
                                 </div>
@@ -823,22 +765,78 @@
                                                 <div className="space-y-1"><label className="text-[9px] font-black uppercase tracking-tighter text-slate-400 ml-1">Client Name</label><input type="text" value={seat.clientName} placeholder="Client..." onChange={(e) => updateSeat(seat.id, 'clientName', e.target.value)} className={`w-full px-3 py-1.5 rounded-lg text-sm font-black border-none outline-none focus:ring-2 focus:ring-blue-500/20 transition-all ${isDarkMode ? 'bg-slate-900 text-white placeholder-slate-700' : 'bg-slate-50 text-slate-900 placeholder-slate-300'}`} /></div>
                                             </div>
                                             <div className="space-y-2.5 mb-5">
-                                                <div className="space-y-1"><label className="text-[9px] font-black uppercase tracking-tighter text-slate-400 ml-1">Monthly Salary</label>
+                                                <div className="space-y-1">
+                                                    <div className="flex items-center justify-between px-1">
+                                                        <label className="text-[9px] font-black uppercase tracking-tighter text-slate-400">Management Fee</label>
+                                                        <button onClick={() => toggleLock(seat.id)} className={`p-0.5 rounded transition-colors ${seat.isLocked ? 'text-blue-500' : 'text-slate-300 hover:text-blue-400'}`}>
+                                                            <Icon name={seat.isLocked ? "lock" : "unlock"} className="w-3 h-3" />
+                                                        </button>
+                                                    </div>
                                                     <div className="grid grid-cols-2 gap-2">
-                                                        <div className="relative"><span className="absolute left-2.5 top-1/2 -translate-y-1/2 font-bold text-blue-500 text-[10px]">$</span><SmartInput inputMode="decimal" value={seat.salary} onChange={(raw) => updateSeat(seat.id, 'salary', raw)} onBlur={() => finalizeFieldSetup(seat.id, 'salary')} className={`w-full pl-5 pr-2 py-1.5 rounded-lg border font-bold text-xs outline-none transition-all ${isDarkMode ? 'bg-slate-900 border-slate-700 text-white' : 'bg-slate-50 border-slate-200'}`} /></div>
-                                                        <div className="relative"><span className="absolute left-2.5 top-1/2 -translate-y-1/2 font-bold text-green-600 text-[10px]">₱</span><SmartInput inputMode="decimal" value={seat.salaryPhp} onChange={(raw) => updateSeat(seat.id, 'salaryPhp', raw)} onBlur={() => finalizeFieldSetup(seat.id, 'salaryPhp')} className={`w-full pl-5 pr-2 py-1.5 rounded-lg border font-bold text-xs outline-none transition-all ${isDarkMode ? 'bg-slate-800 border-slate-700 text-slate-400 placeholder-slate-600' : 'bg-slate-100 border-slate-100 text-slate-500 placeholder-slate-400'}`} /></div>
+                                                        <div className="relative">
+                                                            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 font-bold text-purple-500 text-[10px]">$</span>
+                                                            <SmartInput 
+                                                                inputMode="decimal" 
+                                                                value={seat.flatFee} 
+                                                                readOnly={seat.isLocked} 
+                                                                onChange={(raw) => updateSeat(seat.id, 'flatFee', raw)} 
+                                                                className={`w-full pl-5 pr-2 py-1.5 rounded-lg border font-bold text-xs outline-none transition-all ${seat.isLocked ? (isDarkMode ? 'bg-slate-700 border-transparent text-slate-500 italic' : 'bg-slate-100 border-transparent text-slate-400 italic') : (isDarkMode ? 'bg-slate-900 border-slate-700 text-white' : 'bg-slate-50 border-slate-200')}`} 
+                                                            />
+                                                        </div>
+                                                        <div className="relative">
+                                                            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 font-bold text-slate-400 text-[10px]">₱</span>
+                                                            <div className={`w-full pl-5 pr-2 py-1.5 rounded-lg border font-bold text-xs truncate flex items-center ${isDarkMode ? 'bg-slate-800/50 border-slate-700/50 text-slate-400' : 'bg-slate-100/50 border-slate-100 text-slate-400'}`}>
+                                                                {formatCurrency(parseFloat(seat.flatFee || 0) * exchangeRate)}
+                                                            </div>
+                                                        </div>
                                                     </div>
                                                 </div>
-                                                <div className="space-y-1"><label className="text-[9px] font-black uppercase tracking-tighter text-slate-400 ml-1">Operating Cost Per Seat</label>
+
+                                                <div className="space-y-1">
+                                                    <label className="text-[9px] font-black uppercase tracking-tighter text-slate-400 ml-1">Operating Cost Per Seat</label>
                                                     <div className="grid grid-cols-2 gap-2">
-                                                        <div className="relative"><span className="absolute left-2.5 top-1/2 -translate-y-1/2 font-bold text-indigo-500 text-[10px]">$</span><SmartInput inputMode="decimal" value={seat.overhead} onChange={(raw) => updateSeat(seat.id, 'overhead', raw)} onBlur={() => finalizeFieldSetup(seat.id, 'overhead')} className={`w-full pl-5 pr-2 py-1.5 rounded-lg border font-bold text-xs outline-none transition-all ${isDarkMode ? 'bg-slate-900 border-slate-700 text-white' : 'bg-slate-50 border-slate-200'}`} /></div>
-                                                        <div className="relative"><span className="absolute left-2.5 top-1/2 -translate-y-1/2 font-bold text-green-600 text-[10px]">₱</span><SmartInput inputMode="decimal" value={seat.overheadPhp} onChange={(raw) => updateSeat(seat.id, 'overheadPhp', raw)} onBlur={() => finalizeFieldSetup(seat.id, 'overheadPhp')} className={`w-full pl-5 pr-2 py-1.5 rounded-lg border font-bold text-xs outline-none transition-all ${isDarkMode ? 'bg-slate-800 border-slate-700 text-slate-400 placeholder-slate-600' : 'bg-slate-100 border-slate-100 text-slate-500 placeholder-slate-400'}`} /></div>
+                                                        <div className="relative">
+                                                            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 font-bold text-indigo-500 text-[10px]">$</span>
+                                                            <SmartInput 
+                                                                inputMode="decimal" 
+                                                                value={seat.overhead} 
+                                                                onChange={(raw) => updateSeat(seat.id, 'overhead', raw)} 
+                                                                className={`w-full pl-5 pr-2 py-1.5 rounded-lg border font-bold text-xs outline-none transition-all ${isDarkMode ? 'bg-slate-900 border-slate-700 text-white' : 'bg-slate-50 border-slate-200'}`} 
+                                                            />
+                                                        </div>
+                                                        <div className="relative">
+                                                            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 font-bold text-green-600 text-[10px]">₱</span>
+                                                            <SmartInput 
+                                                                inputMode="decimal" 
+                                                                value={seat.overheadPhp} 
+                                                                onChange={(raw) => updateSeat(seat.id, 'overheadPhp', raw)} 
+                                                                className={`w-full pl-5 pr-2 py-1.5 rounded-lg border font-bold text-xs outline-none transition-all ${isDarkMode ? 'bg-slate-800 border-slate-700 text-slate-400 placeholder-slate-600' : 'bg-slate-100 border-slate-100 text-slate-500 placeholder-slate-400'}`} 
+                                                            />
+                                                        </div>
                                                     </div>
                                                 </div>
-                                                <div className="space-y-1"><div className="flex items-center justify-between px-1"><label className="text-[9px] font-black uppercase tracking-tighter text-slate-400">Management Fee</label><button onClick={() => toggleLock(seat.id)} className={`p-0.5 rounded transition-colors ${seat.isLocked ? 'text-blue-500' : 'text-slate-300 hover:text-blue-400'}`}><Icon name={seat.isLocked ? "lock" : "unlock"} className="w-3 h-3" /></button></div>
+
+                                                <div className="space-y-1">
+                                                    <label className="text-[9px] font-black uppercase tracking-tighter text-slate-400 ml-1">Monthly Salary</label>
                                                     <div className="grid grid-cols-2 gap-2">
-                                                        <div className="relative"><span className="absolute left-2.5 top-1/2 -translate-y-1/2 font-bold text-purple-500 text-[10px]">$</span><SmartInput inputMode="decimal" value={seat.flatFee} readOnly={seat.isLocked} onChange={(raw) => updateSeat(seat.id, 'flatFee', raw)} className={`w-full pl-5 pr-2 py-1.5 rounded-lg border font-bold text-xs outline-none transition-all ${seat.isLocked ? (isDarkMode ? 'bg-slate-700 border-transparent text-slate-500 italic' : 'bg-slate-100 border-transparent text-slate-400 italic') : (isDarkMode ? 'bg-slate-900 border-slate-700 text-white' : 'bg-slate-50 border-slate-200')}`} /></div>
-                                                        <div className="relative"><span className="absolute left-2.5 top-1/2 -translate-y-1/2 font-bold text-slate-400 text-[10px]">₱</span><div className={`w-full pl-5 pr-2 py-1.5 rounded-lg border font-bold text-xs truncate flex items-center ${isDarkMode ? 'bg-slate-800/50 border-slate-700/50 text-slate-400' : 'bg-slate-100/50 border-slate-100 text-slate-400'}`}>{formatCurrency(parseFloat(seat.flatFee || 0) * exchangeRate)}</div></div>
+                                                        <div className="relative">
+                                                            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 font-bold text-blue-500 text-[10px]">$</span>
+                                                            <SmartInput 
+                                                                inputMode="decimal" 
+                                                                value={seat.salary} 
+                                                                onChange={(raw) => updateSeat(seat.id, 'salary', raw)} 
+                                                                className={`w-full pl-5 pr-2 py-1.5 rounded-lg border font-bold text-xs outline-none transition-all ${isDarkMode ? 'bg-slate-900 border-slate-700 text-white' : 'bg-slate-50 border-slate-200'}`} 
+                                                            />
+                                                        </div>
+                                                        <div className="relative">
+                                                            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 font-bold text-green-600 text-[10px]">₱</span>
+                                                            <SmartInput 
+                                                                inputMode="decimal" 
+                                                                value={seat.salaryPhp} 
+                                                                onChange={(raw) => updateSeat(seat.id, 'salaryPhp', raw)} 
+                                                                className={`w-full pl-5 pr-2 py-1.5 rounded-lg border font-bold text-xs outline-none transition-all ${isDarkMode ? 'bg-slate-800 border-slate-700 text-slate-400 placeholder-slate-600' : 'bg-slate-100 border-slate-100 text-slate-500 placeholder-slate-400'}`} 
+                                                            />
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>
@@ -853,7 +851,8 @@
                         ) : (
                             <div className="max-w-4xl mx-auto">
                                 <div className={`p-6 rounded-2xl border ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200 shadow-sm'}`}>
-                                    <div className="flex items-center justify-between mb-6">
+                                    {/* COMPACTED STICKY OFFSET */}
+                                    <div className={`sticky top-[450px] md:top-[310px] z-30 flex items-center justify-between mb-4 p-3 -mx-4 rounded-xl ${isDarkMode ? 'bg-slate-800/95' : 'bg-white/95'} backdrop-blur-sm border-b ${isDarkMode ? 'border-slate-700' : 'border-slate-100'}`}>
                                         <div>
                                             <h2 className={`text-lg font-black ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>Overhead Cost Breakdown</h2>
                                             <p className={`text-xs ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>Itemize expenses to calculate the total global overhead.</p>
@@ -891,49 +890,31 @@
                                                     </div>
                                                     <div className="flex-1 w-full md:w-auto">
                                                         <label className="text-[9px] font-black uppercase text-slate-400 ml-1">Description</label>
-                                                        <input 
-                                                            type="text" 
-                                                            value={item.name} 
-                                                            onChange={(e) => updateOverheadItem(item.id, 'name', e.target.value)}
-                                                            placeholder="Details (e.g. Fiber Internet 500mbps)" 
-                                                            className={`w-full px-3 py-1.5 rounded-lg text-sm font-bold border-none outline-none focus:ring-2 focus:ring-blue-500/20 transition-all ${isDarkMode ? 'bg-slate-800 text-white placeholder-slate-600' : 'bg-white text-slate-900 placeholder-slate-400'}`} 
-                                                        />
+                                                        <input type="text" value={item.name} onChange={(e) => updateOverheadItem(item.id, 'name', e.target.value)} placeholder="Details..." className={`w-full px-3 py-1.5 rounded-lg text-sm font-bold border-none outline-none focus:ring-2 focus:ring-blue-500/20 transition-all ${isDarkMode ? 'bg-slate-800 text-white placeholder-slate-600' : 'bg-white text-slate-900 placeholder-slate-400'}`} />
                                                     </div>
                                                     <div className="flex w-full md:w-auto gap-3">
                                                         <div className="w-1/2 md:w-32">
                                                             <label className="text-[9px] font-black uppercase text-blue-500 ml-1">Cost (USD)</label>
                                                             <div className="relative">
                                                                 <span className="absolute left-2.5 top-1/2 -translate-y-1/2 font-bold text-slate-400 text-xs">$</span>
-                                                                <SmartInput 
-                                                                    inputMode="decimal" 
-                                                                    value={item.costUsd} 
-                                                                    onChange={(val) => updateOverheadItem(item.id, 'costUsd', val)} 
-                                                                    className={`w-full pl-6 pr-3 py-1.5 rounded-lg text-sm font-bold outline-none border ${isDarkMode ? 'bg-slate-800 border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-900'}`} 
-                                                                />
+                                                                <SmartInput inputMode="decimal" value={item.costUsd} onChange={(val) => updateOverheadItem(item.id, 'costUsd', val)} className={`w-full pl-6 pr-3 py-1.5 rounded-lg text-sm font-bold outline-none border ${isDarkMode ? 'bg-slate-800 border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-900'}`} />
                                                             </div>
                                                         </div>
                                                         <div className="w-1/2 md:w-32">
                                                             <label className="text-[9px] font-black uppercase text-green-600 ml-1">Cost (PHP)</label>
                                                             <div className="relative">
                                                                 <span className="absolute left-2.5 top-1/2 -translate-y-1/2 font-bold text-slate-400 text-xs">₱</span>
-                                                                <SmartInput 
-                                                                    inputMode="decimal" 
-                                                                    value={item.costPhp} 
-                                                                    onChange={(val) => updateOverheadItem(item.id, 'costPhp', val)} 
-                                                                    className={`w-full pl-6 pr-3 py-1.5 rounded-lg text-sm font-bold outline-none border ${isDarkMode ? 'bg-slate-800 border-slate-700 text-slate-400' : 'bg-white border-slate-200 text-slate-500'}`} 
-                                                                />
+                                                                <SmartInput inputMode="decimal" value={item.costPhp} onChange={(val) => updateOverheadItem(item.id, 'costPhp', val)} className={`w-full pl-6 pr-3 py-1.5 rounded-lg text-sm font-bold outline-none border ${isDarkMode ? 'bg-slate-800 border-slate-700 text-slate-400' : 'bg-white border-slate-200 text-slate-900'}`} />
                                                             </div>
                                                         </div>
                                                         <div className="pt-4">
-                                                            <button onClick={() => removeOverheadItem(item.id)} className="p-2 text-slate-400 hover:text-red-500 transition-colors">
-                                                                <Icon name="trash-2" className="w-4 h-4" />
-                                                            </button>
+                                                            <button onClick={() => removeOverheadItem(item.id)} className="p-2 text-slate-400 hover:text-red-500 transition-colors"><Icon name="trash-2" className="w-4 h-4" /></button>
                                                         </div>
                                                     </div>
                                                 </div>
                                             ))}
                                             <div className={`mt-6 p-4 rounded-xl flex justify-between items-center ${isDarkMode ? 'bg-blue-900/20 border border-blue-500/20' : 'bg-blue-50 border border-blue-100'}`}>
-                                                <div className="text-sm font-bold text-blue-500">Total Overhead Breakdown</div>
+                                                <div className="text-sm font-bold text-blue-500">Total Overhead Cost</div>
                                                 <div className="text-right">
                                                     <div className={`text-xl font-black ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>${formatCurrency(parseFloat(globalOverhead) || 0)}</div>
                                                     <div className="text-xs font-bold text-slate-400">₱{formatCurrency(parseFloat(globalOverheadPhp) || 0)}</div>
@@ -947,13 +928,36 @@
                         </div>
                     </main>
 
+                    {/* CUSTOM NOTIFICATION UI */}
+                    {notification && (
+                        <div className="fixed bottom-24 right-4 z-[100] w-72 animate-notification">
+                            <div className={`p-4 rounded-2xl shadow-2xl border flex items-center gap-3 ${notification.type === 'error' ? 'bg-red-900/90 border-red-500 text-red-50' : 'bg-blue-900/90 border-blue-500 text-blue-50'}`}>
+                                <Icon name={notification.type === 'error' ? 'alert-triangle' : 'check-circle'} className="w-5 h-5 flex-shrink-0" />
+                                <p className="text-xs font-black uppercase tracking-widest">{notification.message}</p>
+                            </div>
+                        </div>
+                    )}
+
                     <footer className={`fixed bottom-0 left-0 right-0 z-50 border-t ${isDarkMode ? 'bg-slate-900/95 border-slate-800' : 'bg-white/95 border-slate-200 shadow-[0_-5px_15px_rgba(0,0,0,0.03)]'}`}>
                         <div className="max-w-7xl mx-auto px-4 py-4 md:py-6">
-                            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-2 items-center">
+                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 md:gap-2 items-center">
                                 <div className="space-y-0.5"><div className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-purple-500 leading-none"><Icon name="users" className="w-2.5 h-2.5" /> Total Salary Cost</div><div className="text-xl md:text-2xl font-black text-purple-500">${formatCurrency(totals.totalSalary)}</div><div className="text-[9px] font-bold text-slate-400 leading-tight">₱ {formatCurrency(totals.totalSalary * exchangeRate)} PHP</div></div>
-                                <div className="space-y-0.5"><div className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-green-500 leading-none"><Icon name="pie-chart" className="w-2.5 h-2.5" /> Total Profit</div><div className={`text-xl md:text-2xl font-black ${totals.totalProfit >= 0 ? 'text-green-500' : 'text-red-500'}`}>${formatCurrency(totals.totalProfit)}</div><div className="flex items-center gap-1 leading-none"><div className={`w-1.5 h-1.5 rounded-full ${averageProfitMargin >= 30 ? 'bg-green-500' : averageProfitMargin >= 20 ? 'bg-yellow-500' : 'bg-red-500'}`}></div><span className="text-[9px] font-bold text-slate-400 leading-none">{averageProfitMargin.toFixed(1)}% Average</span></div></div>
-                                <div className="space-y-0.5"><div className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-blue-500 leading-none"><Icon name="credit-card" className="w-2.5 h-2.5" /> Total Client Fee</div><div className="text-xl md:text-2xl font-black text-blue-500">${formatCurrency(totals.totalCharge)}</div><div className={`text-[9px] font-bold ${isDarkMode ? 'text-slate-500' : 'text-slate-400'} leading-none`}>₱{formatCurrency(totals.totalPhp)} PHP</div></div>
-                                <div className="flex justify-end col-span-2 lg:col-span-1"><button onClick={handleGenerateReport} className="w-full md:w-auto px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-black rounded-xl shadow-lg shadow-blue-500/10 transition-all hover:-translate-y-0.5">GENERATE REPORT</button></div>
+                                <div className="space-y-0.5"><div className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-indigo-500 leading-none"><Icon name="split" className="w-2.5 h-2.5" /> Total Overhead</div><div className="text-xl md:text-2xl font-black text-indigo-500">${formatCurrency(totals.totalOverhead)}</div><div className="text-[9px] font-bold text-slate-400 leading-tight">₱ {formatCurrency(totals.totalOverhead * exchangeRate)} PHP</div></div>
+                                <div className="space-y-0.5"><div className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-blue-500 leading-none"><Icon name="credit-card" className="w-2.5 h-2.5" /> Total Client Fee</div><div className="text-xl md:text-2xl font-black text-blue-500">${formatCurrency(totals.totalCharge)}</div><div className={`text-[9px] font-bold ${isDarkMode ? 'text-slate-50' : 'text-slate-400'} leading-none`}>₱{formatCurrency(totals.totalPhp)} PHP</div></div>
+                                <div className="space-y-0.5">
+                                    <div className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-green-500 leading-none">
+                                        <Icon name="pie-chart" className="w-2.5 h-2.5" /> 
+                                        {totals.totalProfit >= 0 ? 'Total Profit' : 'Total Loss'}
+                                    </div>
+                                    <div className={`text-xl md:text-2xl font-black ${totals.totalProfit >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                                        ${formatCurrency(totals.totalProfit)}
+                                    </div>
+                                    <div className="flex items-center gap-1 leading-none">
+                                        <div className={`w-1.5 h-1.5 rounded-full ${averageProfitMargin >= 30 ? 'bg-green-500' : averageProfitMargin >= 20 ? 'bg-yellow-500' : 'bg-red-500'}`}></div>
+                                        <span className="text-[9px] font-bold text-slate-400 leading-none">{averageProfitMargin.toFixed(1)}% Average</span>
+                                    </div>
+                                </div>
+                                <div className="flex justify-end col-span-2 md:col-span-1"><button onClick={handleGenerateReport} className="w-full md:w-auto px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-black rounded-xl shadow-lg shadow-blue-500/10 transition-all hover:-translate-y-0.5">GENERATE REPORT</button></div>
                             </div>
                         </div>
                     </footer>
