@@ -559,7 +559,8 @@
 
                 try {
                     const wb = XLSX.utils.book_new();
-                    const dateStr = new Date().toLocaleDateString().replace(/\//g, "-");
+                    // FIXED: Use a more stable date string format for filenames
+                    const dateStr = new Date().toISOString().split('T')[0];
 
                     const summaryData = [
                         ["OPERATIONS CALCULATOR - SUMMARY REPORT"],
@@ -631,10 +632,13 @@
                     a.download = `Operations_Calculator_Report_${dateStr}.xlsx`;
                     document.body.appendChild(a);
                     a.click();
+                    
+                    // FIXED: Increased timeout to ensure Electron catches the download event
+                    // before the object URL is revoked.
                     setTimeout(() => {
                         document.body.removeChild(a);
                         window.URL.revokeObjectURL(url);
-                    }, 0);
+                    }, 2000);
 
                     showNotification("Report generated successfully!", "success");
 

@@ -1,41 +1,74 @@
-const { app, BrowserWindow } = require('electron');
+const { app, BrowserWindow, session } = require('electron');
 const path = require('path');
 
-/**
- * This script serves as the primary brain for your desktop application.
- * It instructs Windows to create a new window and load your calculator.
- */
+function createWindow() {
+    const win = new BrowserWindow({
+        width: 1200,
+        height: 800,
+        title: "Operations Calculator",
+        backgroundColor: '#0f172a', // Matches slate-900
+        icon: path.join(__dirname, 'icon.png'),
+        webPreferences: {
+            nodeIntegration: false,
+            contextIsolation: true,
+            spellcheck: false
+        }
+    });
 
-function createWindow () {
-  const mainWindow = new BrowserWindow({
-    width: 1280,
-    height: 900,
-    // This sets the icon in the top-left corner and the taskbar
-    icon: path.join(__dirname, 'icon.png'),
-    webPreferences: {
-      nodeIntegration: true,
-      contextIsolation: false
-    }
-  });
+    win.loadFile(path.join(__dirname, 'index.html'));
+    win.setMenuBarVisibility(false);
 
-  // Optional: Remove the default file menu for a cleaner look
-  mainWindow.setMenuBarVisibility(false);
+    // --- UPDATED: Download Handler ---
+    // This now triggers the "Save As" dialog instead of auto-saving.
+    win.webContents.session.on('will-download', (event, item, webContents) => {
+        
+        // We define the dialog options to make it look professional
+        item.setSaveDialogOptions({
+            title: 'Save Operations Report',
+            defaultPath: item.getFilename(),
+            filters: [
+                { name: 'Excel Files', extensions: ['xlsx'] },
+                { name: 'All Files', extensions: ['*'] }
+            ]
+        });
 
-  mainWindow.loadFile('index.html');
+        // CRITICAL CHANGE: We removed 'item.setSavePath(...)'. 
+        // By NOT forcing a path, Electron will automatically open the "Save As" dialog.
+        
+        item.on('updated', (event, state) => {
+            if (state === 'interrupted') {
+                console.log('Download is interrupted but can be resumed');
+            } else if (state === 'progressing') {
+                if (item.isPaused()) {
+                    console.log('Download is paused');
+                } else {
+                    console.log(`Received bytes: ${item.getReceivedBytes()}`);
+                }
+            }
+        });
+        
+        item.once('done', (event, state) => {
+            if (state === 'completed') {
+                console.log('Download successfully');
+            } else {
+                console.log(`Download failed: ${state}`);
+            }
+        });
+    });
 }
 
-// This method will be called when Electron has finished initialization.
 app.whenReady().then(() => {
-  createWindow();
+    createWindow();
 
-  app.on('activate', function () {
-    // On macOS it is common to re-create a window in the app when the
-    // dock icon is clicked and there are no other windows open.
-    if (BrowserWindow.getAllWindows().length === 0) createWindow();
-  });
+    app.on('activate', () => {
+        if (BrowserWindow.getAllWindows().length === 0) {
+            createWindow();
+        }
+    });
 });
 
-// Quit when all windows are closed, except on macOS.
-app.on('window-all-closed', function () {
-  if (process.platform !== 'darwin') app.quit();
+app.on('window-all-closed', () => {
+    if (process.platform !== 'darwin') {
+        app.quit();
+    }
 });

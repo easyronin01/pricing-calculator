@@ -1,33 +1,20 @@
 {
   "name": "operations-calculator",
-  "version": "3.0.0",
+  "version": "3.0.1",
   "description": "Pricing Strategy for Operations",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "build": "electron-builder"
+    "build": "electron-packager . \"Operations Calculator\" --platform=win32 --arch=x64 --overwrite --out=dist",
+    "make-installer": "node create-installer.js"
   },
-  "build": {
-    "appId": "com.gianni.operationscalculator",
-    "productName": "Operations Calculator",
-    "executableName": "OperationsCalculator",
-    "compression": "maximum",
-    "asar": true,
-    "win": {
-      "target": "nsis",
-      "icon": "icon.ico"
-    },
-    "nsis": {
-      "oneClick": false,
-      "allowToChangeInstallationDirectory": true,
-      "createDesktopShortcut": true,
-      "createStartMenuShortcut": true,
-      "shortcutName": "Operations Calculator",
-      "allowElevation": true
-    }
-  },
+  "keywords": [],
+  "author": "easyronin01",
+  "license": "ISC",
   "devDependencies": {
-    "electron": "^28.0.0",
-    "electron-builder": "^24.13.3"
+    "electron": "^31.0.0",
+    "electron-builder": "^26.7.0",
+    "electron-packager": "^17.1.2",
+    "electron-winstaller": "^5.3.1"
   }
 }
